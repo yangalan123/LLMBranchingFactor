@@ -1,0 +1,70 @@
+#!/bin/bash
+echo $PATH
+cd /path/to/your/project
+conda activate ./env
+cd cognac
+
+models=("meta-llama/Llama-2-13b-chat-hf"
+       "meta-llama/Llama-2-13b-hf"
+       "meta-llama/Meta-Llama-3-8B"
+       "meta-llama/Meta-Llama-3-8B-Instruct"
+       "meta-llama/Llama-2-70b-chat-hf"
+       "meta-llama/Llama-2-70b-hf"
+       "meta-llama/Meta-Llama-3-70B-Instruct"
+       "meta-llama/Meta-Llama-3-70B")
+template_list=("../chat_templates/chat_templates/llama-2-chat.jinja"
+               "../chat_templates/chat_templates/llama-2-chat.jinja"
+               "../chat_templates/chat_templates/llama-3-instruct.jinja"
+               "../chat_templates/chat_templates/llama-3-instruct.jinja"
+               "../chat_templates/chat_templates/llama-2-chat.jinja"
+               "../chat_templates/chat_templates/llama-2-chat.jinja"
+               "../chat_templates/chat_templates/llama-3-instruct.jinja"
+               "../chat_templates/chat_templates/llama-3-instruct.jinja")
+
+target_constraints=("1" "2" "3" "4" "5")
+source_constraints=("1" "2" "3" "4" "5")
+#top_ps=("0.95" "0.9")
+# just to get loglik, so making top_p dummy
+#top_ps=("1.0")
+sequence_length=512
+
+total_tasks=${#models[@]}*${#constraints[@]}*${#top_ps[@]}
+if ((SLURM_ARRAY_TASK_ID >= total_tasks)); then
+  echo "Error: Invalid task ID $SLURM_ARRAY_TASK_ID" >&2
+  exit 1
+fi
+
+model_idx=$((SLURM_ARRAY_TASK_ID / (${#target_constraints[@]} * ${#source_constraints[@]})))
+target_constraint_idx=$((SLURM_ARRAY_TASK_ID / ${#source_constraints[@]} % ${#target_constraints[@]}))
+source_constraint_idx=$((SLURM_ARRAY_TASK_ID % ${#source_constraints[@]}))
+
+min_p="1e-1"
+# Extract the corresponding values
+model="${models[$model_idx]}"
+template="${template_list[$model_idx]}"
+multi_constraints="${target_constraints[$target_constraint_idx]}"
+source_constraint_level="${source_constraints[$source_constraint_idx]}"
+#top_p="${top_ps[$top_p_idx]}"
+top_p=1.0
+#sequence_length="${sequence_lengths[$seq_len_idx]}"
+
+echo "model: ${model}, min_p: ${min_p}, constraint: ${multi_constraints}, sequence_length: ${sequence_length}, top_p: ${top_p}"
+
+  #--output_root_dir "response_storywriting_local_story_gen/application_ctrlgen_multi_constraints_${multi_constraints}" \
+python check_violating_constraints.py \
+  --model "${model}" \
+  --output_root_dir "cognac_responses_200_violating_constraint/application_ctrlgen_multi_constraints_${multi_constraints}" \
+  --chat_template_path "${template}" \
+  --source_constraint_level "${source_constraint_level}" \
+  --target_constraint_level "${multi_constraints}"
+
+# for llama-3 models we need to re-run the experiment -- due to some weird problems with vllm (0.4.3, 0.5.1, 0.5.4)
+#python main.py \
+  #--model "${model}" \
+  #--max_tokens "${sequence_length}" \
+  #--output_root_dir "cognac_responses_200/application_ctrlgen_multi_constraints_${multi_constraints}" \
+  #--task_selection_filename "sampled_task_cognac_app_200.pt" \
+  #--chat_template_path "${template}" \
+  #--top_p "${top_p}" \
+  #--multi_constraints "${multi_constraints}"
+#
