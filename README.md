@@ -38,6 +38,8 @@ But in general, you can put any prompt template files in the `prompt_templates` 
 
 2. Run shell scripts under `mmlu`, `cognac`, `storytelling`, `language_modeling` to replicate experiments in the paper. `stepX_xxx.sh` specify the ordering to run the scripts. `visualization` provide codes to create figures in the paper.
 
+3. [For Application to New Dataset and New Models] Take a look at `demo/demo.py`. Owing to significant improvement of vLLM memory management, using my columnar IO storage, you can now using a single file to run the whole pipeline.
+
 ## Reference
 If you use this code as part of any published research, please acknowledge the following paper (it encourages researchers who publish their code!):
 

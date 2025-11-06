@@ -20,35 +20,7 @@ import numpy as np
 from uncertainty_quantification.consts import root_path
 from loguru import logger
 from tqdm import tqdm
-
-
-def condense_arrays_with_inconsistent_lengths(array: list, reduce_fn=np.mean, q=0.95, prefix_mode=False,
-                                              divide_by_length=False):
-    array_lengths = [len(x) for x in array]
-    quantile_length = np.quantile(array_lengths, q)
-    array_cumsums = [np.cumsum(x) for x in array]
-
-    # Define worker function for parallel processing
-    def process_position(i):
-        if prefix_mode:
-            elements_at_this_position = np.array([array_cumsums[x_i][i] for x_i, x in enumerate(array) if len(x) >= i + 1])
-        else:
-            elements_at_this_position = np.array([x[i] for x in array if len(x) >= i + 1])
-        if divide_by_length:
-            elements_at_this_position = elements_at_this_position / (i + 1)
-        if len(elements_at_this_position) <= 3:
-            return None
-        return reduce_fn(elements_at_this_position)
-
-    # Parallel execution
-    final_outputs = []
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        for result in executor.map(process_position, range(int(quantile_length))):
-            if result is None:
-                break
-            final_outputs.append(result)
-
-    return final_outputs
+from uncertainty_quantification.common_utils import condense_arrays_with_inconsistent_lengths
 
 
 def load_loglik_data(filepath: str):

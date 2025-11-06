@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 import torch
 import os
+import concurrent.futures
 
 
 def get_gpu_memory_and_usage_rate(logger):
@@ -50,3 +51,31 @@ def get_update_full_spectrum_file_pattern(source_dir, model_name, args):
         file_pattern = os.path.join(source_dir,
                                     f"{model_name}_response*max_tokens_{args.max_tokens}*top_p_{args.top_p}_*{args.additional_file_search_pattern + '*' if len(args.additional_file_search_pattern) > 0 else ''}.pt.update_full_spectrum")
     return file_pattern
+
+def condense_arrays_with_inconsistent_lengths(array: list, reduce_fn=np.mean, q=0.95, prefix_mode=False,
+                                              divide_by_length=False):
+    array_lengths = [len(x) for x in array]
+    quantile_length = np.quantile(array_lengths, q)
+    array_cumsums = [np.cumsum(x) for x in array]
+
+    # Define worker function for parallel processing
+    def process_position(i):
+        if prefix_mode:
+            elements_at_this_position = np.array([array_cumsums[x_i][i] for x_i, x in enumerate(array) if len(x) >= i + 1])
+        else:
+            elements_at_this_position = np.array([x[i] for x in array if len(x) >= i + 1])
+        if divide_by_length:
+            elements_at_this_position = elements_at_this_position / (i + 1)
+        if len(elements_at_this_position) <= 3:
+            return None
+        return reduce_fn(elements_at_this_position)
+
+    # Parallel execution
+    final_outputs = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        for result in executor.map(process_position, range(int(quantile_length))):
+            if result is None:
+                break
+            final_outputs.append(result)
+
+    return final_outputs
