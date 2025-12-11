@@ -14,36 +14,25 @@ from uncertainty_quantification.arg_utils import step1_forward_args
 from uncertainty_quantification.manager import ForwardManager
 from transformers import AutoTokenizer
 from loguru import logger
-from datasets import load_dataset
 from tqdm import tqdm
 import concurrent.futures
 import numpy as np
 from uncertainty_quantification.common_utils import condense_arrays_with_inconsistent_lengths
+from data import get_data
 
-def get_data_from_huggingface(args):
-    # default dataset is wikitext-103-v1, as shown below in main argument parser
-    if "wikitext" in args.dataset_path.lower():
-        # normal wikipedia task
-        ds = load_dataset(args.dataset_path, args.dataset_name)
-        test_ds = ds['test'].filter(lambda x: len(word_tokenize(x['text'])) > args.min_word_count)
-        sample_counts = min(args.dataset_sample_counts, len(test_ds))
-        sampled_ds = test_ds.shuffle(seed=args.seed).select(range(sample_counts))
-        return [x['text'] for x in sampled_ds]
+
 
 # from language_modeling/main.py
 def step1_run_llm(args):
     model = args.model
     chat_template_path = args.chat_template_path
     constraint_level = args.constraint_level
-    file_name = "{}_response_n_{}_max_tokens_{}_log_probs_{}_min_p_{}_top_p_{}_seed{}{}{}{}.pt".format(
+    file_name = "{}_response_n_{}_max_tokens_{}_log_probs_{}_min_p_{}_top_p_{}_seed{}{}.pt".format(
         os.path.basename(model),
         args.sample_counts,
         args.max_tokens, args.log_probs,
         args.min_p, args.top_p, args.seed,
         "_word_level_constraint_multiplier_{}".format(args.word_level_constraint_multiplier) if args.word_level_constraint else "",
-        '_input_file_{}'.format(os.path.basename(args.input_file)) if args.input_file is not None else "",
-        '_nudging_{}_{}_{}'.format(os.path.basename(args.nudging_model), args.nudging_max_prefix_length,
-                                   args.nudging_freq_threshold) if args.nudging else ""
     )
     file_name = os.path.join(output_root_dir, file_name)
     # setting up the logger
@@ -51,10 +40,10 @@ def step1_run_llm(args):
     tokenizer = setup_tokenizer(model, chat_template_path)
     metadata_filename = file_name.replace(".pt", ".metadata")
     if os.path.exists(metadata_filename):
-        prompts, all_task_prompts, all_original_prompts, args = torch.load(metadata_filename)
+        prompts, all_task_prompts, all_original_prompts, args = torch.load(metadata_filename, weights_only=False)
     else:
         constrained_prompt = []
-        all_original_prompts = get_data_from_huggingface(args)
+        all_original_prompts = get_data(args)
         tokenize_func = sent_tokenize if not args.word_level_constraint else word_tokenize
         _constraint_level = constraint_level * args.word_level_constraint_multiplier if args.word_level_constraint else constraint_level
         _max_constraint_level = args.max_constraint_level * args.word_level_constraint_multiplier if args.word_level_constraint else args.max_constraint_level
@@ -96,7 +85,7 @@ def step1_run_llm(args):
     if os.path.exists(file_name):
         print("File exists: {}".format(file_name))
         try:
-            response = torch.load(file_name)
+            response = torch.load(file_name, weights_only=False)
             assert len(response) == len(prompts), "length mismatch: {} (responses) vs. {} (prompts)".format(len(response), len(prompts))
             maybe_exist_flag = True
         except Exception as e:
@@ -180,27 +169,21 @@ def step3_compute_bf_values(distribution_profile, asymptotic_limit=50):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='StoryWritingArgsParsing.')
     # the values here are default values only, can be changed in the command line
-    parser = step1_forward_args(parser, sample_counts=50, max_tokens=1024, log_probs=100, min_p=0.1, top_p=1.0, temperature=1.0, output_root_dir="response_storywriting")
-    parser.add_argument("--constraint_level", type=int, default=0,
+    parser = step1_forward_args(parser, sample_counts=50, max_tokens=1024, log_probs=100, min_p=0, top_p=0.9, temperature=1.0, output_root_dir="response_wikitext")
+    parser.add_argument("--constraint_level", type=int, default=5,
                         help="constraint level (in #(words) * multiplier/#(sentences))")
     parser.add_argument("--max_constraint_level", type=int, default=10,)
     parser.add_argument("--dataset_path", type=str, default="Salesforce/wikitext", help="task/dataset path, first argument of datasets.load_dataset")
     parser.add_argument("--dataset_name", type=str, default="wikitext-103-v1", help="task/dataset name, second argument of datasets.load_dataset")
     parser.add_argument("--dataset_sample_counts", type=int, default=50, help="sample counts for dataset")
     parser.add_argument("--min_word_count", type=int, default=50, help="minimum word count per instance for dataset")
-    parser.add_argument("--min_tokens", type=int, default=0, help="minimum token number per instance")
+    parser.add_argument("--min_tokens", type=int, default=50, help="minimum token number per instance")
     parser.add_argument("--word_level_constraint", action="store_true", help="constraint level in word level")
     parser.add_argument("--word_level_constraint_multiplier", type=int, default=10, help="constraint level multiplier in word level")
-    parser.add_argument("--input_file", type=str, help='input file', default=None)
-    parser.add_argument("--nudging", action="store_true", help="nudging mode")
-    parser.add_argument("--nudging_ckpt_path", type=str, default=None, help="nudging ckpt path")
-    parser.add_argument("--nudging_model", type=str, default=None, help="nudging model")
-    parser.add_argument("--nudging_max_prefix_length", type=int, default=5, help="nudging max prefix length")
-    parser.add_argument("--nudging_freq_threshold", type=int, default=50, help="nudging freq threshold")
     args = parser.parse_args()
     output_root_dir = args.output_root_dir
     os.makedirs(output_root_dir, exist_ok=True)
-    logger.add("experiment.log", rotation="10 MB")
+    logger.add(os.path.join(output_root_dir, "experiment_{}.log".format(os.path.basename(args.model))), rotation="10 MB")
     # log all arguments for easy reproduction and experiment tracking
     logger.info("Arguments: {}".format(args))
     logger.info("Starting Step 1: Running LLM")
@@ -211,4 +194,12 @@ if __name__ == '__main__':
     logger.info("Starting Step 3: Computing BF Values")
     bf_values_per_prompt, overall_bf_value = step3_compute_bf_values(distribution_profile)
     logger.info(f"Overall BF value: {overall_bf_value}")
+    bf_file_name = "{}_response_n_{}_max_tokens_{}_log_probs_{}_min_p_{}_top_p_{}_seed{}{}_bf.pt".format(
+        os.path.basename(args.model),
+        args.sample_counts,
+        args.max_tokens, args.log_probs,
+        args.min_p, args.top_p, args.seed,
+        "_word_level_constraint_multiplier_{}".format(args.word_level_constraint_multiplier) if args.word_level_constraint else "",
+    )
+    torch.save([bf_values_per_prompt, overall_bf_value], os.path.join(output_root_dir, bf_file_name))
 

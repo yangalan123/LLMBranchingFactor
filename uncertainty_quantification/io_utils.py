@@ -11,7 +11,11 @@ from loguru import logger
 from contextlib import contextmanager
 
 from vllm.outputs import RequestOutput, CompletionOutput
-from vllm.sequence import PromptLogprobs, SampleLogprobs
+try:
+    from vllm.sequence import PromptLogprobs, SampleLogprobs
+except ImportError:
+    from vllm.logprobs import PromptLogprobs, SampleLogprobs
+
 from uncertainty_quantification.loglik_computation import get_logprob_per_token_from_vllm_outputs
 
 
