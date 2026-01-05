@@ -26,7 +26,7 @@ conda activate /net/scratch2/chenghao/multimodal_tokenizer/env
 # GET ALL MODELS * 4 CHOICES in one array, then use SLURM_ARRAY_TASK_ID to index into the array
 models=("allenai/OLMo2-7B-1124" "allenai/OLMo-2-1124-7B-SFT" "allenai/OLMo-2-1124-7B-DPO" "allenai/OLMo-2-1124-7B-Instruct"
         "allenai/OLMo2-13B-1124" "allenai/OLMo-2-1124-13B-SFT" "allenai/OLMo-2-1124-13B-DPO" "allenai/OLMo-2-1124-13B-Instruct" )
-constraint_levels=("1" "3" "5")
+constraint_levels=("1")
 total_tasks=${#models[@]}*${#constraint_levels[@]}
 if ((SLURM_ARRAY_TASK_ID >= total_tasks)); then
   echo "Error: Invalid task ID $SLURM_ARRAY_TASK_ID" >&2
@@ -43,4 +43,5 @@ python demo.py \
   --output_root_dir "response_storywriting/application_ctrlgen_multi_constraints_${constraint_level}" \
   --dataset_name "creative_storygen" \
   --dataset_path "local_generated_story_extracted.pt" \
+  --plotting_mode \
   --constraint_level "${constraint_level}"
