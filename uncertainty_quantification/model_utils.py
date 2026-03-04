@@ -28,6 +28,8 @@ def configure_model(args, max_num_seqs=None, gpu_memory_utilization=None, enforc
     vllm_args['enforce_eager'] = enforce_eager
     vllm_args['cpu_offload_gb'] = cpu_offload_gb
     vllm_args['max_logprobs'] = args.log_probs
+    if "qwen3" in args.model.lower():
+        vllm_args['max_model_len'] = args.max_model_len if args.max_model_len is not None else 32768
     llm = LLM(**vllm_args)
 
     logit_processor = lambda token_ids, log_probs: eta_truncation_logit_processor(token_ids, log_probs, eta=args.min_p)

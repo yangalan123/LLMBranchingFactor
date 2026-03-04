@@ -1,8 +1,10 @@
 # adapted from storytelling/main.py
 # implemented the whole pipeline from sampling generation based on prompt, compute entropy + logliks, and then compute BF
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import argparse
 import gc
-import os
 import torch
 import re
 import glob
@@ -11,24 +13,31 @@ from collections import defaultdict
 from uncertainty_quantification.tokenizer_utils import setup_tokenizer, format_prompt
 from uncertainty_quantification.loglik_computation import (
     get_tokenwise_entropy_from_vllm_outputs, compute_loglik, get_tokenwise_logprob_from_vllm_outputs)
-from uncertainty_quantification.uncertainty_computation import compute_bf_values
+from uncertainty_quantification.uncertainty_computation import (
+    compute_bf_values, 
+    from_entropy_profile_to_length_wise_entropies_and_sample_wise_seq_mean_entropies,
+    compute_ebf_from_length_wise_and_sample_wise_entropies
+)
+from uncertainty_quantification.visualization_utils import (
+    matplotlib_plot, 
+    matplotlib_plot_piecewise,
+    model_name_visualization_name_mapping, 
+    ebf_name_visualization_name_mapping
+)
 from uncertainty_quantification.arg_utils import step1_forward_args
 from uncertainty_quantification.manager import ForwardManager
+from uncertainty_quantification.io_utils import StoreManager
 from transformers import AutoTokenizer
 from loguru import logger
 from tqdm import tqdm
 import numpy as np
 from uncertainty_quantification.common_utils import condense_arrays_with_inconsistent_lengths
 from uncertainty_quantification.model_utils import compute_gpu_memory_utilization
-from uncertainty_quantification.visualization_utils import (
-    matplotlib_plot, 
-    model_name_visualization_name_mapping, 
-    ebf_name_visualization_name_mapping
-)
 from data import (
     get_data, get_mmlu_data, get_storytelling_data, get_cognac_data_wrapper,
     apply_constraints_language_modeling_storytelling, process_prompts_with_roles
 )
+import traceback
 
 def extract_arg_value(arg_string, arg_name):
     pattern = rf'{arg_name}_(-?\d+(?:\.\d+)?)'
@@ -37,9 +46,20 @@ def extract_arg_value(arg_string, arg_name):
         return match.group(1)
     return None
 
+def ema_smooth(data, alpha=0.1):
+    smoothed_data = []
+    for i, x in enumerate(data):
+        if i == 0:
+            smoothed_data.append(x)
+        else:
+            smoothed_data.append(alpha * x + (1 - alpha) * smoothed_data[-1])
+    return smoothed_data
+
 def run_plotting_mode(args):
     logger.info("Running in plotting mode...")
     output_root_dir = args.output_root_dir
+    if "application_ctrlgen_multi_constraints_" in os.path.basename(output_root_dir):
+        output_root_dir = os.path.dirname(output_root_dir)
     visualization_dir = os.path.join(output_root_dir, "visualization")
     os.makedirs(visualization_dir, exist_ok=True)
     
@@ -48,12 +68,12 @@ def run_plotting_mode(args):
     # Pattern: {model}_response_n_{sample_counts}_max_tokens_{max_tokens}_log_probs_{log_probs}_min_p_{min_p}_top_p_{top_p}_seed{seed}*_bf.pt
     
     file_pattern_parts = [
-        os.path.basename(args.model),
+        # os.path.basename(args.model),
         args.sample_counts,
         args.max_tokens, args.log_probs,
         args.min_p, args.top_p, args.seed
     ]
-    base_pattern = "{}_response_n_{}_max_tokens_{}_log_probs_{}_min_p_{}_top_p_{}_seed{}".format(*file_pattern_parts)
+    base_pattern = "*_response_n_{}_max_tokens_{}_log_probs_{}_min_p_{}_top_p_{}_seed{}".format(*file_pattern_parts)
     
     # Search recursively for files
     search_pattern = os.path.join(output_root_dir, "**", f"{base_pattern}*_bf.pt")
@@ -68,13 +88,18 @@ def run_plotting_mode(args):
 
     # Structure: yvalues_records[model_name][tag] = [val1, val2, ...] corresponding to sorted constraints
     
-    constraint_value_pairs = []
+    model_bf_values = dict()
+    model_constraint_piecewise_aggregated = dict()
+    
+    piecewise_ebf_position = getattr(args, 'piecewise_ebf_position', 5)
+    min_example_per_position = getattr(args, 'min_example_per_position', 10)
     
     for file_path in files:
         # Extract constraint level from directory name
         # Expected structure: .../application_ctrlgen_multi_constraints_{level}/...
         dir_name = os.path.dirname(file_path)
         match = re.search(r'application_ctrlgen_multi_constraints_(\d+)', dir_name)
+        model_name = os.path.basename(file_path).split("_")[0]
         
         if match:
             constraint_level = int(match.group(1))
@@ -92,39 +117,86 @@ def run_plotting_mode(args):
                 continue
         
         try:
-            # Load the BF file: [bf_values_per_prompt, overall_bf_value]
-            data = torch.load(file_path)
-            overall_bf = data[1] # Mean BF
-            constraint_value_pairs.append((constraint_level, overall_bf))
+            # Load the BF file: [bf_values_per_prompt, overall_bf_value, distribution_profile]
+            data = torch.load(file_path, weights_only=False)
+            if len(data) == 3:
+                 bf_values_per_prompt, overall_bf, distribution_profile = data
+                 
+                 # Process piecewise EBF
+                 if model_name not in model_constraint_piecewise_aggregated:
+                    model_constraint_piecewise_aggregated[model_name] = dict()
+                 if constraint_level not in model_constraint_piecewise_aggregated[model_name]:
+                    model_constraint_piecewise_aggregated[model_name][constraint_level] = dict()
+                
+                 for entropies in distribution_profile['entropy']:
+                    # entropies is list of list (samples)
+                    length_to_compute = min([len(x) for x in entropies])
+                    for position in range(0, length_to_compute, piecewise_ebf_position):
+                        if position + piecewise_ebf_position >= length_to_compute:
+                            continue
+                        
+                        offset = position
+                        piecewise_length_wise_entropies, piecewise_sample_wise_seq_mean_entropies = \
+                            from_entropy_profile_to_length_wise_entropies_and_sample_wise_seq_mean_entropies(
+                                entropies, offset=offset, maxlen=position + piecewise_ebf_position)
+                        
+                        flag_check_min_example = False
+                        for _pos in piecewise_length_wise_entropies:
+                            if len(piecewise_length_wise_entropies[_pos]) < min_example_per_position:
+                                flag_check_min_example = True
+                                break
+                        if flag_check_min_example:
+                            continue
+                            
+                        ebf = compute_ebf_from_length_wise_and_sample_wise_entropies(
+                            piecewise_length_wise_entropies,
+                            piecewise_sample_wise_seq_mean_entropies,
+                            offset=offset)
+                        model_constraint_piecewise_aggregated[model_name][constraint_level][position] = defaultdict(list)
+                        
+                        for ebf_key, val in ebf.items():
+                            model_constraint_piecewise_aggregated[model_name][constraint_level][position][ebf_key].append(val)
+
+            elif len(data) == 2:
+                # Old format
+                bf_values_per_prompt, overall_bf = data
+                distribution_profile = None
+                logger.warning(f"Old data format in {file_path}")
+            else:
+                logger.warning(f"Unknown data format in {file_path}")
+                continue
+
+            if model_name not in model_bf_values:
+                model_bf_values[model_name] = []
+            model_bf_values[model_name].append((constraint_level, overall_bf))
         except Exception as e:
-            logger.error(f"Error loading {file_path}: {e}")
+            logger.error(f"Error loading {file_path}: {e}\n{traceback.format_exc()}")
             continue
             
-    if not constraint_value_pairs:
+    if not model_bf_values:
         logger.warning("No valid data extracted.")
         return
 
-    # Sort by constraint level
-    constraint_value_pairs.sort(key=lambda x: x[0])
-    constraints = [x[0] for x in constraint_value_pairs]
-    bf_values = [x[1] for x in constraint_value_pairs]
-    
-    logger.info(f"Constraints: {constraints}")
-    logger.info(f"BF Values: {bf_values}")
-    
-    model_name = os.path.basename(args.model)
-    vis_model_name = model_name_visualization_name_mapping(model_name)
-    
     # We'll use 'ebf_perplexity' tag which maps to 'BF' in ebf_name_visualization_name_mapping
     tag = "ebf_perplexity" 
-    
-    yvalues_records = {
-        vis_model_name: {
+    yvalues_records = dict()
+    # Sort by constraint level
+    for model_name, constraint_value_pairs in model_bf_values.items():
+        constraint_value_pairs.sort(key=lambda x: x[0])
+        constraints = [x[0] for x in constraint_value_pairs]
+        bf_values = [x[1] for x in constraint_value_pairs]
+        
+        logger.info(f"Model Name: {model_name}")
+        logger.info(f"Constraints: {constraints}")
+        logger.info(f"BF Values: {bf_values}")
+        
+        vis_model_name = model_name_visualization_name_mapping(model_name)
+        
+        yvalues_records[vis_model_name] = {
             tag: bf_values
         }
-    }
     
-    save_path = os.path.join(visualization_dir, f"bf_vs_constraint_{model_name}.pdf")
+    save_path = os.path.join(visualization_dir, f"bf_vs_constraint.pdf")
     
     try:
         matplotlib_plot(
@@ -140,6 +212,64 @@ def run_plotting_mode(args):
         logger.info(f"Saved plot to {save_path}")
     except Exception as e:
         logger.error(f"Failed to plot: {e}")
+
+    # Plot Piecewise EBF
+    piecewise_ebf_keys = ["mc_ppl", "cond_ppl_prod", "mean_seq_entropy", "ht_ppl", "perplexity"]
+    smooth = lambda x: ema_smooth(x, alpha=getattr(args, 'smoothing_factor', 1.0))
+    
+    constraint_dict = dict()
+    x_values_dict = dict()
+    
+    for model_name in model_constraint_piecewise_aggregated:
+        for constraint in model_constraint_piecewise_aggregated[model_name]:
+            positions = sorted(list(model_constraint_piecewise_aggregated[model_name][constraint].keys()))
+            if not positions: continue
+
+            renamed_model_name = model_name_visualization_name_mapping(model_name)
+            key = f"{renamed_model_name}_constraint_{constraint}"
+            
+            x_values_dict[key] = []
+            constraint_dict[key] = defaultdict(list)
+            
+            valid_positions = []
+            
+            for pos in positions:
+                valid_positions.append(pos)
+                for ebf_key in piecewise_ebf_keys:
+                    vals = model_constraint_piecewise_aggregated[model_name][constraint][pos][ebf_key]
+                    if vals:
+                        mean_val = np.nanmean(vals)
+                        constraint_dict[key][ebf_key].append(mean_val)
+                    else:
+                        constraint_dict[key][ebf_key].append(np.nan)
+
+            x_values_dict[key] = valid_positions
+            # Smooth values
+            for ebf_key in piecewise_ebf_keys:
+                if ebf_key in constraint_dict[key]:
+                    constraint_dict[key][ebf_key] = smooth(constraint_dict[key][ebf_key])
+
+    for model_name in model_constraint_piecewise_aggregated:
+        renamed_model_name = model_name_visualization_name_mapping(model_name)
+        for ebf_key in piecewise_ebf_keys:
+            save_path = os.path.join(visualization_dir, f"piecewise_ebf_{renamed_model_name}_{ebf_key}.pdf")
+            
+            # Filter for this model
+            local_dict = {k: v for k, v in constraint_dict.items() if f"{renamed_model_name}_constraint_" in k}
+            if not local_dict:
+                continue
+                
+            renamed_ebf_key = f"ebf_{ebf_key}"
+            try:
+                matplotlib_plot_piecewise(
+                    x_values_dict, local_dict, save_path,
+                    y_label=ebf_name_visualization_name_mapping(renamed_ebf_key), 
+                    tag=ebf_key,
+                    fontsize=50, linewidth=5, n_col=3
+                )
+                logger.info(f"Saved piecewise plot to {save_path}")
+            except Exception as e:
+                logger.error(f"Failed to plot piecewise {ebf_key}: {e}")
 
 
 
@@ -299,41 +429,14 @@ def step1_run_llm(args):
     maybe_exist_flag = False
     response = None
     print("Total prompts: {}".format(len(prompts)))
-    
-    # Configure GPU memory and batch size based on model and task type
-    gpu_memory_utilization = compute_gpu_memory_utilization(model)
-    max_num_seqs = 16  # default
-    
-    # Model-specific adjustments
-    if "70b" in model.lower() and "llama-3" in model.lower():
-        gpu_memory_utilization = 0.55
-        max_num_seqs = 128
-    elif "70b" in model.lower() and "llama-2" in model.lower():
-        gpu_memory_utilization = 0.8
-        max_num_seqs = 64
-    elif "8b" in model.lower():
-        gpu_memory_utilization = 0.3
-        max_num_seqs = 128
-    elif task_type == 'language_modeling':
-        # For language modeling, use more aggressive settings
-        gpu_memory_utilization = 0.9
-        max_num_seqs = 256
-    
-    # Task-specific adjustments
-    if task_type == 'mmlu':
-        args.enable_chunked_prefill = True
-        args.max_num_batched_tokens = 256
-        if "8b" in model.lower():
-            gpu_memory_utilization = 0.3
-            max_num_seqs = 128
-    
-    manager.setup_model(max_num_seqs=max_num_seqs, gpu_memory_utilization=gpu_memory_utilization)
+    gpu_memory_utilization = 0.9
+    max_num_seqs = 128
     
     # step-1: get original generated story
     if os.path.exists(file_name):
         print("File exists: {}".format(file_name))
         try:
-            response = torch.load(file_name, weights_only=False)
+            response = manager.store.load(file_name)
             assert len(response) == len(prompts), "length mismatch: {} (responses) vs. {} (prompts)".format(len(response), len(prompts))
             maybe_exist_flag = True
         except Exception as e:
@@ -343,9 +446,24 @@ def step1_run_llm(args):
                 del response
                 gc.collect()
             maybe_exist_flag = False
+    
     if not maybe_exist_flag:
+        manager.setup_model(max_num_seqs=max_num_seqs, gpu_memory_utilization=gpu_memory_utilization)
+        print("Model setup complete")
         response = manager.forward(prompts, file_name, max_num_seqs=max_num_seqs, gpu_memory_utilization=gpu_memory_utilization)
-        torch.save(response, file_name)
+        try:
+            if getattr(args, 'save_logits_chunked_ckpt', False):
+                manager.store.save(response, file_name, async_write=False)
+            else:
+                # check whether such file exists due to checkpointing
+                if os.path.exists(file_name):
+                    os.remove(file_name)
+        except Exception as e:
+            print(f"Error saving response: {e}")
+            print(f"Response length: {len(response)}")
+            print(f"Prompts length: {len(prompts)}")
+            print(f"File name: {file_name}")
+            print("We will continue to run the code, but the initial checkpoint file will not be saved.")
     
     # Return metadata in consistent format
     if task_type == 'mmlu':
@@ -441,7 +559,8 @@ if __name__ == '__main__':
     
     # Dataset arguments (used by language_modeling)
     parser.add_argument("--dataset_path", type=str, default="Salesforce/wikitext", help="task/dataset path, first argument of datasets.load_dataset")
-    parser.add_argument("--dataset_name", type=str, default="wikitext-103-v1", help="task/dataset name, second argument of datasets.load_dataset")
+    # parser.add_argument("--dataset_name", type=str, default="wikitext-103-v1", help="task/dataset name, second argument of datasets.load_dataset")
+    parser.add_argument("--dataset_name", type=str, default="", help="task/dataset name, second argument of datasets.load_dataset")
     parser.add_argument("--dataset_sample_counts", type=int, default=50, help="sample counts for dataset")
     parser.add_argument("--min_word_count", type=int, default=50, help="minimum word count per instance for dataset")
     parser.add_argument("--min_tokens", type=int, default=50, help="minimum token number per instance")
@@ -464,19 +583,19 @@ if __name__ == '__main__':
     parser.add_argument("--nudging_freq_threshold", type=int, default=50, help="nudging freq threshold")
     
     parser.add_argument("--plotting_mode", action="store_true", help="Only run visualization on existing files")
+    parser.add_argument("--save_logits_chunked_ckpt", action="store_true", help="Save logits in chunked format")
 
     args = parser.parse_args()
     
-    if args.plotting_mode:
-        run_plotting_mode(args)
-        exit(0)
-
     output_root_dir = args.output_root_dir
     os.makedirs(output_root_dir, exist_ok=True)
     logger.add(os.path.join(output_root_dir, "experiment_{}.log".format(os.path.basename(args.model))), rotation="10 MB")
     # log all arguments for easy reproduction and experiment tracking
     logger.info("Arguments: {}".format(args))
     logger.info("Task type: {}".format(args.task_type))
+    if args.plotting_mode:
+        run_plotting_mode(args)
+        exit(0)
     logger.info("Starting Step 1: Running LLM")
     metadata, response, file_name = step1_run_llm(args)
     
@@ -493,7 +612,11 @@ if __name__ == '__main__':
     logger.info("Starting Step 3: Computing BF Values")
     bf_values_per_prompt, overall_bf_value = step3_compute_bf_values(distribution_profile)
     logger.info(f"Overall BF value: {overall_bf_value}")
-    
+    bf_file_name = file_name.replace(".pt", "_bf.pt")
+    # torch.save([bf_values_per_prompt, overall_bf_value, distribution_profile], bf_file_name)
+    with StoreManager(temp_dir=os.path.join(output_root_dir, "temp")) as store:
+        store.save([bf_values_per_prompt, overall_bf_value, distribution_profile], bf_file_name, async_write=False)
+
     # # Build BF file name
     # bf_file_name_parts = [
     #     os.path.basename(args.model),
@@ -507,6 +630,4 @@ if __name__ == '__main__':
     # if len(bf_file_name_parts) < 8:
     #     bf_file_name_parts.append("")
     # bf_file_name = "{}_response_n_{}_max_tokens_{}_log_probs_{}_min_p_{}_top_p_{}_seed{}{}_bf.pt".format(*bf_file_name_parts)
-    bf_file_name = file_name.replace(".pt", "_bf.pt")
-    torch.save([bf_values_per_prompt, overall_bf_value], os.path.join(output_root_dir, bf_file_name))
 

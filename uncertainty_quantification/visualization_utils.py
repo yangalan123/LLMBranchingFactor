@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import os
 import pickle
 import numpy as np
 from uncertainty_quantification.consts import root_path
@@ -8,6 +9,7 @@ DEFAULT_FIG_SIZE=(20, 15)
 DEFAULT_FONT_SIZE=50
 DEFAULT_LINE_WIDTH=5
 DEFAULT_VISUALIZATION_DIR=f"{root_path}/visualization"
+CHAT_KEYWORDS = ['chat', 'instruct', 'it', 'dpo', 'sft']
 
 def axis_standardize(ax, simple_adjust=False, xlabel_pad=10, ylabel_pad=10):
     ax.yaxis.set_major_locator(ticker.MaxNLocator(5))
@@ -42,6 +44,25 @@ def model_name_visualization_name_mapping(model_name):
     else:
         return new_model_name.replace("b-chat-hf", "B-chat")
 
+def base_aligned_model_name_mapping():
+    _aligned_to_base_mapping_dict = {
+        "meta-llama/Llama-2-70b-chat-hf": "meta-llama/Llama-2-70b-hf",
+        "meta-llama/Llama-2-13b-chat-hf": "meta-llama/Llama-2-13b-hf",
+        "01-ai/Yi-34B-Chat": "01-ai/Yi-34B",
+        "mistralai/Mixtral-8x7B-v0.1": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "meta-llama/Meta-Llama-3-8B-Instruct": "meta-llama/Meta-Llama-3-8B",
+        "meta-llama/Meta-Llama-3-70B-Instruct": "meta-llama/Meta-Llama-3-70B",
+        "allenai/OLMo-2-1124-13B-DPO": "allenai/OLMo2-13B-1124",
+        "allenai/OLMo-2-1124-7B-DPO": "allenai/OLMo2-7B-1124",
+        "Qwen/Qwen3-4B-Instruct-2507": "Qwen/Qwen3-4B-Base",
+        "Qwen/Qwen3-8B": "Qwen/Qwen3-8B-Base",
+    }
+    aligned_to_base_mapping_dict = dict()
+    for k, v in _aligned_to_base_mapping_dict.items():
+        aligned_to_base_mapping_dict[os.path.basename(model_name_visualization_name_mapping(k))] = os.path.basename(model_name_visualization_name_mapping(v))
+    base_to_aligned_mapping_dict = {v: k for k, v in aligned_to_base_mapping_dict.items()}
+    return aligned_to_base_mapping_dict, base_to_aligned_mapping_dict
+
 
 def ebf_name_visualization_name_mapping(ebf_name):
     mapping_dict = {
@@ -71,7 +92,7 @@ def matplotlib_plot(constraints_level, yvalues_records, save_path, tag="prompt",
 
     # Prepare model lists and palettes (same as before)
     models = list(yvalues_records.keys())
-    chat_models = [x for x in models if "chat" in x.lower() or "instruct" in x.lower()]
+    chat_models = [x for x in models if any(keyword in x.lower() for keyword in CHAT_KEYWORDS)]
     chat_models.sort()
     non_chat_models = [x for x in models if x not in chat_models]
     non_chat_models.sort()

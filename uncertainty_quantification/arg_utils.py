@@ -4,6 +4,7 @@ def step1_forward_args(parser: argparse.ArgumentParser, **kwargs):
     parser.add_argument('--model', type=str, help='model name')
     parser.add_argument('--sample_counts', type=int, help='sample counts', default=kwargs.get('sample_counts', 50))
     parser.add_argument('--max_tokens', type=int, help='max tokens', default=kwargs.get('max_tokens', 512))
+    parser.add_argument("--max_model_len", type=int, help='max model len (please only set this if you are running Qwen3 models with limited gpu memory (or any models allowing very long context)(otherwise, the default setting is 32768))', default=kwargs.get('max_model_len', 32768))
     parser.add_argument('--log_probs', type=int, help='log probs', default=kwargs.get('log_probs', 50))
     parser.add_argument('--prompt_log_probs', type=int, help='prompt log probs', default=kwargs.get('prompt_log_probs', 50))
     parser.add_argument("--max_num_batched_tokens", type=int, default=kwargs.get("max_num_batched_tokens", 256), help="max num batched tokens")
