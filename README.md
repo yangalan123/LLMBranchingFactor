@@ -47,7 +47,7 @@ Start with [`reviewer_mvhn_experiments/README.md`](reviewer_mvhn_experiments/REA
 ```bibtex
 @article{yang2026alignment,
   title   = {LLM Probability Concentration: How Alignment Shrinks the Generative Horizon},
-  author  = {Yang, Chenghao and Holtzman, Ari},
+  author  = {Yang, Chenghao and Li, Sida and Holtzman, Ari},
   journal = {Transactions on Machine Learning Research},
   year    = {2026},
   url     = {https://openreview.net/forum?id=KotVuXj6CL}
