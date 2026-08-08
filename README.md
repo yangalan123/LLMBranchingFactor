@@ -1,6 +1,6 @@
 # LLM Branching Factor
 
-Official code for **[How Alignment Shrinks the Generative Horizon](https://openreview.net/forum?id=KotVuXj6CL)**, published in Transactions on Machine Learning Research (TMLR).
+Official code for **[LLM Probability Concentration: How Alignment Shrinks the Generative Horizon](https://openreview.net/forum?id=KotVuXj6CL)**, published in Transactions on Machine Learning Research (TMLR).
 
 Branching Factor (BF) measures the effective number of plausible next steps during generation. The camera-ready experiments distinguish:
 
@@ -46,7 +46,7 @@ Start with [`reviewer_mvhn_experiments/README.md`](reviewer_mvhn_experiments/REA
 
 ```bibtex
 @article{yang2026alignment,
-  title   = {How Alignment Shrinks the Generative Horizon},
+  title   = {LLM Probability Concentration: How Alignment Shrinks the Generative Horizon},
   author  = {Yang, Chenghao and Holtzman, Ari},
   journal = {Transactions on Machine Learning Research},
   year    = {2026},
