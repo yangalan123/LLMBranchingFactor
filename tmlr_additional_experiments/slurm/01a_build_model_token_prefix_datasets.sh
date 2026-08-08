@@ -22,7 +22,7 @@ set -euo pipefail
 #   TRUST_REMOTE_CODE=1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-OUTPUT_DATA_DIR="${OUTPUT_DATA_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/generated_randomness_control_datasets}"
+OUTPUT_DATA_DIR="${OUTPUT_DATA_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/generated_randomness_control_datasets}"
 
 : "${RANDOM_STRINGS_PT:?Set RANDOM_STRINGS_PT to the original random-string .pt list.}"
 if [[ -z "${ARTIFACT_PATTERN:-}" && -z "${ARTIFACT_PATTERNS_FILE:-}" ]]; then
@@ -33,7 +33,7 @@ fi
 MAX_EXAMPLES="${MAX_EXAMPLES:-200}"
 SEED="${SEED:-42}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 mkdir -p "${OUTPUT_DATA_DIR}"
 
 cd "${PROJECT_DIR}"
@@ -43,7 +43,7 @@ if [[ -n "${ENV_PATH:-}" ]]; then
 fi
 
 CMD=(
-  python reviewer_mvhn_experiments/build_model_token_prefix_random_string_datasets.py
+  python tmlr_additional_experiments/build_model_token_prefix_random_string_datasets.py
   --random_strings_pt "${RANDOM_STRINGS_PT}"
   --output_dir "${OUTPUT_DATA_DIR}"
   --max_examples "${MAX_EXAMPLES}"

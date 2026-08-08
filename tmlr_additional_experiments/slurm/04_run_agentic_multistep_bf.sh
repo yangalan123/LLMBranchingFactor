@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mvhn-agentic-multistep-bf
-#SBATCH --output=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.out
-#SBATCH --error=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.err
+#SBATCH --output=tmlr_additional_experiments/slurm/logs/%x-%A-%a.out
+#SBATCH --error=tmlr_additional_experiments/slurm/logs/%x-%A-%a.err
 #SBATCH --cpus-per-task=8
 #SBATCH --array=0-5
 #SBATCH --gres=gpu:1
@@ -32,9 +32,9 @@ if (( MODEL_INDEX < 0 || MODEL_INDEX >= ${#MODELS[@]} )); then
 fi
 MODEL="${MODELS[$MODEL_INDEX]}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 
-OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/agentic_multistep_bf}"
+OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/agentic_multistep_bf}"
 NUM_TURNS="${NUM_TURNS:-5}"
 SAMPLE_COUNTS="${SAMPLE_COUNTS:-20}"
 MAX_TOKENS="${MAX_TOKENS:-200}"
@@ -54,7 +54,7 @@ if [[ -n "${CHAT_TEMPLATE_PATH:-}" ]]; then
 fi
 
 echo "Running multi-turn agentic BF for model=${MODEL} (${NUM_TURNS} turns)"
-python reviewer_mvhn_experiments/run_agentic_multistep_bf.py \
+python tmlr_additional_experiments/run_agentic_multistep_bf.py \
   --model "${MODEL}" \
   --output_dir "${OUTPUT_DIR}" \
   --num_turns "${NUM_TURNS}" \

@@ -15,12 +15,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 
-OUTPUT_DATA_DIR="${OUTPUT_DATA_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/generated_agentic_feedback_datasets}"
+OUTPUT_DATA_DIR="${OUTPUT_DATA_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/generated_agentic_feedback_datasets}"
 MAX_EXAMPLES="${MAX_EXAMPLES:-200}"
 SEED="${SEED:-42}"
 NOISE_CHARS="${NOISE_CHARS:-80}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 mkdir -p "${OUTPUT_DATA_DIR}"
 
 cd "${PROJECT_DIR}"
@@ -29,21 +29,21 @@ if [[ -n "${ENV_PATH:-}" ]]; then
   conda activate "${ENV_PATH}"
 fi
 
-python reviewer_mvhn_experiments/build_generation_randomness_control_dataset.py \
+python tmlr_additional_experiments/build_generation_randomness_control_dataset.py \
   --mode structured_feedback_control \
   --max_examples "${MAX_EXAMPLES}" \
   --seed "${SEED}" \
   --output_pt "${OUTPUT_DATA_DIR}/random_strings_agentic_feedback_control.pt" \
   --output_jsonl "${OUTPUT_DATA_DIR}/random_strings_agentic_feedback_control.jsonl"
 
-python reviewer_mvhn_experiments/build_generation_randomness_control_dataset.py \
+python tmlr_additional_experiments/build_generation_randomness_control_dataset.py \
   --mode structured_feedback_adversarial \
   --max_examples "${MAX_EXAMPLES}" \
   --seed "${SEED}" \
   --output_pt "${OUTPUT_DATA_DIR}/random_strings_agentic_feedback_adversarial.pt" \
   --output_jsonl "${OUTPUT_DATA_DIR}/random_strings_agentic_feedback_adversarial.jsonl"
 
-python reviewer_mvhn_experiments/build_generation_randomness_control_dataset.py \
+python tmlr_additional_experiments/build_generation_randomness_control_dataset.py \
   --mode structured_feedback_random_noise \
   --max_examples "${MAX_EXAMPLES}" \
   --seed "${SEED}" \

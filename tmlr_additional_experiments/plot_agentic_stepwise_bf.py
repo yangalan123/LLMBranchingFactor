@@ -9,11 +9,11 @@ Local-friendly: only needs the CSV(s) + matplotlib (no torch / vLLM).
 
 Examples:
     # scan a results root for every model's agentic_multistep_bf.csv
-    python reviewer_mvhn_experiments/plot_agentic_stepwise_bf.py \
-        --root reviewer_mvhn_experiments/outputs/agentic_multistep_bf --error_band
+    python tmlr_additional_experiments/plot_agentic_stepwise_bf.py \
+        --root tmlr_additional_experiments/outputs/agentic_multistep_bf --error_band
 
     # or point at explicit CSVs
-    python reviewer_mvhn_experiments/plot_agentic_stepwise_bf.py --csv path/to/agentic_multistep_bf.csv
+    python tmlr_additional_experiments/plot_agentic_stepwise_bf.py --csv path/to/agentic_multistep_bf.csv
 """
 
 import argparse

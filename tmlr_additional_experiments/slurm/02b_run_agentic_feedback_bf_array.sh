@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mvhn-agentic-bf
-#SBATCH --output=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.out
-#SBATCH --error=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.err
+#SBATCH --output=tmlr_additional_experiments/slurm/logs/%x-%A-%a.out
+#SBATCH --error=tmlr_additional_experiments/slurm/logs/%x-%A-%a.err
 #SBATCH --cpus-per-task=8
 #SBATCH --array=0-5
 #SBATCH --gres=gpu:1
@@ -28,9 +28,9 @@ if (( MODEL_INDEX < 0 || MODEL_INDEX >= ${#MODELS[@]} )); then
 fi
 MODEL="${MODELS[$MODEL_INDEX]}"
 MODEL_OUTPUT_NAME="${MODEL//\//_}"
-AGENTIC_DATA_DIR="${AGENTIC_DATA_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/generated_agentic_feedback_datasets}"
+AGENTIC_DATA_DIR="${AGENTIC_DATA_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/generated_agentic_feedback_datasets}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 
 DATASETS=(
   "random_strings_agentic_feedback_control.pt"
@@ -38,7 +38,7 @@ DATASETS=(
   "random_strings_agentic_feedback_random_noise.pt"
 )
 
-OUTPUT_ROOT="${OUTPUT_ROOT:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/agentic_feedback_bf}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/agentic_feedback_bf}"
 SAMPLE_COUNTS="${SAMPLE_COUNTS:-20}"
 MAX_TOKENS="${MAX_TOKENS:-256}"
 LOG_PROBS="${LOG_PROBS:-50}"

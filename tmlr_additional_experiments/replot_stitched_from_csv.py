@@ -9,8 +9,8 @@ Plot styling lives in ``stitched_plot_utils.plot_rows`` so it stays identical to
 what the server pipeline produces. Edit that function to change the look.
 
 Examples (run from the repo root):
-    python reviewer_mvhn_experiments/replot_stitched_from_csv.py
-    python reviewer_mvhn_experiments/replot_stitched_from_csv.py --root reviewer_mvhn_experiments/stitched_plots__entropy_only --log_y
+    python tmlr_additional_experiments/replot_stitched_from_csv.py
+    python tmlr_additional_experiments/replot_stitched_from_csv.py --root tmlr_additional_experiments/stitched_plots__entropy_only --log_y
 """
 
 import argparse

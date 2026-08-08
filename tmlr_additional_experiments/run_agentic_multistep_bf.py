@@ -19,7 +19,7 @@ Outputs (under <output_dir>/<model>/):
   * agentic_multistep_bf.csv  -> model, condition, turn, bf, bf_std, n_prompts
   * trajectories.jsonl        -> the full conversation per scenario/condition
   * summary.json              -> run config + records
-Plot with reviewer_mvhn_experiments/plot_agentic_stepwise_bf.py.
+Plot with tmlr_additional_experiments/plot_agentic_stepwise_bf.py.
 
 This script needs the cluster env (vLLM + torch); run it via
 slurm/04_run_agentic_multistep_bf.sh.

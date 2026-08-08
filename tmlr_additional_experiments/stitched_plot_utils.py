@@ -13,7 +13,7 @@ import os
 import sys
 
 # Make uncertainty_quantification importable no matter which sibling script imports
-# this module (the local replot script only puts reviewer_mvhn_experiments/ on the
+# this module (the local replot script only puts tmlr_additional_experiments/ on the
 # path, not the repo root). consts/visualization_utils only need numpy, so this stays
 # light enough to run locally without torch/vLLM.
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

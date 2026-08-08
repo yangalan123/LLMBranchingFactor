@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mvhn-rand-bf-v2
-#SBATCH --output=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.out
-#SBATCH --error=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.err
+#SBATCH --output=tmlr_additional_experiments/slurm/logs/%x-%A-%a.out
+#SBATCH --error=tmlr_additional_experiments/slurm/logs/%x-%A-%a.err
 #SBATCH --cpus-per-task=8
 #SBATCH --array=0-5
 #SBATCH --gres=gpu:1
@@ -27,7 +27,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/random_string_bf_pipeline_v2}"
+OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/random_string_bf_pipeline_v2}"
 
 : "${ARTIFACT_PATTERNS_FILE:?Set ARTIFACT_PATTERNS_FILE to a path-pattern list.}"
 : "${RANDOM_STRINGS_PT:?Set RANDOM_STRINGS_PT to the original random-string .pt list.}"
@@ -58,7 +58,7 @@ EXTERNAL_DELTAS="${EXTERNAL_DELTAS:-2,4}"
 DEFAULT_MULTIPLIER="${DEFAULT_MULTIPLIER:-15}"
 MIN_BASELINE_CONSTRAINT_LEVEL="${MIN_BASELINE_CONSTRAINT_LEVEL:-1}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 mkdir -p "${OUTPUT_DIR}"
 
 cd "${PROJECT_DIR}"
@@ -90,7 +90,7 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
   EXTRA_ARGS+=(--dry_run)
 fi
 
-python reviewer_mvhn_experiments/run_random_string_bf_pipeline_v2.py \
+python tmlr_additional_experiments/run_random_string_bf_pipeline_v2.py \
   --artifact_patterns_file "${ARTIFACT_PATTERNS_FILE}" \
   --random_strings_pt "${RANDOM_STRINGS_PT}" \
   --output_dir "${OUTPUT_DIR}" \

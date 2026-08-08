@@ -21,11 +21,11 @@ set -euo pipefail
 : "${ARTIFACT_KIND:?Set ARTIFACT_KIND to bf_file, entropy_profile, or raw_vllm.}"
 : "${ARTIFACT_PATH:?Set ARTIFACT_PATH to the artifact path.}"
 
-OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/artifact_diag}"
+OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/artifact_diag}"
 TOP_P="${TOP_P:-0.9}"
 WINDOW_SIZE="${WINDOW_SIZE:-10}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 mkdir -p "${OUTPUT_DIR}"
 
 cd "${PROJECT_DIR}"
@@ -39,16 +39,16 @@ COMMON_ARGS=(
 )
 
 if [[ "${ARTIFACT_KIND}" == "bf_file" ]]; then
-  python reviewer_mvhn_experiments/random_string_artifact_diagnostics.py \
+  python tmlr_additional_experiments/random_string_artifact_diagnostics.py \
     "${COMMON_ARGS[@]}" \
     --bf_file "${ARTIFACT_PATH}"
 elif [[ "${ARTIFACT_KIND}" == "entropy_profile" ]]; then
-  python reviewer_mvhn_experiments/random_string_artifact_diagnostics.py \
+  python tmlr_additional_experiments/random_string_artifact_diagnostics.py \
     "${COMMON_ARGS[@]}" \
     --entropy_profile_ckpt "${ARTIFACT_PATH}"
 elif [[ "${ARTIFACT_KIND}" == "raw_vllm" ]]; then
   : "${MODEL:?Set MODEL for raw_vllm analysis.}"
-  python reviewer_mvhn_experiments/random_string_artifact_diagnostics.py \
+  python tmlr_additional_experiments/random_string_artifact_diagnostics.py \
     "${COMMON_ARGS[@]}" \
     --raw_vllm_file "${ARTIFACT_PATH}" \
     --metadata_path "${METADATA_PATH:-}" \

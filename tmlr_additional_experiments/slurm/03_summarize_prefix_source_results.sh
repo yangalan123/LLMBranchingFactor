@@ -19,15 +19,15 @@ set -euo pipefail
 : "${ENV_PATH:?Set ENV_PATH to your conda env path or name.}"
 : "${RESULTS_ROOT:?Set RESULTS_ROOT to the prefix-source BF output root.}"
 
-OUTPUT_CSV="${OUTPUT_CSV:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/generation_randomness_summary.csv}"
+OUTPUT_CSV="${OUTPUT_CSV:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/generation_randomness_summary.csv}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 mkdir -p "$(dirname "${OUTPUT_CSV}")"
 
 cd "${PROJECT_DIR}"
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "${ENV_PATH}"
 
-python reviewer_mvhn_experiments/summarize_prefix_source_results.py \
+python tmlr_additional_experiments/summarize_prefix_source_results.py \
   --results_root "${RESULTS_ROOT}" \
   --output_csv "${OUTPUT_CSV}"

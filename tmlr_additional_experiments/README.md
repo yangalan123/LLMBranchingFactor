@@ -140,9 +140,9 @@ Batch diagnostics
 Example: recursively diagnose BF files matching a model/prompt pattern:
 
 ```bash
-python reviewer_mvhn_experiments/random_string_artifact_diagnostics.py \
+python tmlr_additional_experiments/random_string_artifact_diagnostics.py \
   --artifact_pattern "/path/to/demo/response_random_strings/application_ctrlgen_multi_constraints_*/*_response_n_50_max_tokens_1024_log_probs_50_min_p_0_top_p_0.9_seed42_word_level_constraint_multiplier_15_bf.pt" \
-  --output_dir reviewer_mvhn_experiments/outputs/random_string_bf_diag \
+  --output_dir tmlr_additional_experiments/outputs/random_string_bf_diag \
   --window_size 10 \
   --num_workers 1
 ```
@@ -150,10 +150,10 @@ python reviewer_mvhn_experiments/random_string_artifact_diagnostics.py \
 Example: diagnose raw response dumps instead of BF files:
 
 ```bash
-python reviewer_mvhn_experiments/random_string_artifact_diagnostics.py \
+python tmlr_additional_experiments/random_string_artifact_diagnostics.py \
   --artifact_pattern "/path/to/language_modeling/response_random_strings/application_ctrlgen_multi_constraints_*/*_response_n_50_max_tokens_512_log_probs_50_min_p_0.1_top_p_0.9_seed42_word_level_constraint_multiplier_15.pt" \
   --artifact_kind raw_vllm \
-  --output_dir reviewer_mvhn_experiments/outputs/random_string_raw_diag \
+  --output_dir tmlr_additional_experiments/outputs/random_string_raw_diag \
   --window_size 10 \
   --num_workers 1
 ```
@@ -193,9 +193,9 @@ This reads the v2 model-token-prefix `manifest` and the `*_bf.pt` profile in eac
 row's `output_root_dir`. No vLLM rerun is needed.
 
 ```bash
-python reviewer_mvhn_experiments/plot_v2_external_control_stitched.py \
-  --manifest reviewer_mvhn_experiments/generated_randomness_control_datasets/manifest.csv \
-  --output_dir reviewer_mvhn_experiments/outputs/v2_stitched_external_control \
+python tmlr_additional_experiments/plot_v2_external_control_stitched.py \
+  --manifest tmlr_additional_experiments/generated_randomness_control_datasets/manifest.csv \
+  --output_dir tmlr_additional_experiments/outputs/v2_stitched_external_control \
   --constraints 0,2,4 \
   --window_size 10 \
   --metric bf
@@ -220,10 +220,10 @@ The compact, path-free data used for the camera-ready figures is included:
 Re-render the figures without model inference:
 
 ```bash
-python reviewer_mvhn_experiments/replot_stitched_from_csv.py
-python reviewer_mvhn_experiments/plot_agentic_delta_from_control.py \
-  --delta_csv reviewer_mvhn_experiments/agentic_plots/agentic_delta_from_control.csv \
-  --output_dir reviewer_mvhn_experiments/agentic_plots
+python tmlr_additional_experiments/replot_stitched_from_csv.py
+python tmlr_additional_experiments/plot_agentic_delta_from_control.py \
+  --delta_csv tmlr_additional_experiments/agentic_plots/agentic_delta_from_control.csv \
+  --output_dir tmlr_additional_experiments/agentic_plots
 ```
 
 Portable cluster configuration
@@ -233,9 +233,9 @@ The SLURM files contain only generic resource requests. Submit them from the
 repository root after creating the log directory:
 
 ```bash
-mkdir -p reviewer_mvhn_experiments/slurm/logs
+mkdir -p tmlr_additional_experiments/slurm/logs
 export ENV_PATH=/path/to/conda/environment  # optional if already activated
-sbatch reviewer_mvhn_experiments/slurm/01b_build_agentic_feedback_datasets.sh
+sbatch tmlr_additional_experiments/slurm/01b_build_agentic_feedback_datasets.sh
 ```
 
 Set dataset/artifact paths through the variables documented at the top of each

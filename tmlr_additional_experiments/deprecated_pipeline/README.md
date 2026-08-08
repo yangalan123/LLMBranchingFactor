@@ -4,8 +4,8 @@ Deprecated random-string BF pipeline notes
 The older 01/01a -> 02 scripts are kept in place for reproducibility, but the
 recommended entry point for the reviewer random-string BF experiment is now:
 
-* `reviewer_mvhn_experiments/run_random_string_bf_pipeline_v2.py`
-* `reviewer_mvhn_experiments/slurm/run_random_string_bf_pipeline_v2.sh`
+* `tmlr_additional_experiments/run_random_string_bf_pipeline_v2.py`
+* `tmlr_additional_experiments/slurm/run_random_string_bf_pipeline_v2.sh`
 
 The v2 pipeline follows a simpler structure:
 

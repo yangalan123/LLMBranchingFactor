@@ -15,9 +15,9 @@ per-model baseline differences, so it is usually the most legible summary panel.
 This script is local-friendly: it only needs the CSV + matplotlib (no torch / vLLM).
 
 Example:
-    python reviewer_mvhn_experiments/plot_agentic_delta_from_control.py \
+    python tmlr_additional_experiments/plot_agentic_delta_from_control.py \
         --summary_csv outputs/agentic_feedback_bf/summary.csv \
-        --output_dir reviewer_mvhn_experiments/agentic_plots
+        --output_dir tmlr_additional_experiments/agentic_plots
 """
 
 import argparse

@@ -194,13 +194,13 @@ cython_debug/
 .cursorindexingignore
 
 # Local experiment artifacts and machine-specific outputs
-reviewer_mvhn_experiments/diagnostic/
-reviewer_mvhn_experiments/outputs/
-reviewer_mvhn_experiments/generated_*/
-reviewer_mvhn_experiments/stitched_plots/
-reviewer_mvhn_experiments/agentic_scenario/
-reviewer_mvhn_experiments/slurm/logs/
-reviewer_mvhn_experiments/slurm/artifact_patterns_file.txt
+tmlr_additional_experiments/diagnostic/
+tmlr_additional_experiments/outputs/
+tmlr_additional_experiments/generated_*/
+tmlr_additional_experiments/stitched_plots/
+tmlr_additional_experiments/agentic_scenario/
+tmlr_additional_experiments/slurm/logs/
+tmlr_additional_experiments/slurm/artifact_patterns_file.txt
 
 # External checkouts and generated visualization artifacts
 Online-DPO-R1/

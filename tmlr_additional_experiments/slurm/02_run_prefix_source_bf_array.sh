@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mvhn-rand-bf
-#SBATCH --output=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.out
-#SBATCH --error=reviewer_mvhn_experiments/slurm/logs/%x-%A-%a.err
+#SBATCH --output=tmlr_additional_experiments/slurm/logs/%x-%A-%a.out
+#SBATCH --error=tmlr_additional_experiments/slurm/logs/%x-%A-%a.err
 #SBATCH --cpus-per-task=8
 #SBATCH --array=0-5
 # Manifest and legacy modes both use 0-(models - 1).
@@ -31,7 +31,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 MODELS=("Qwen/Qwen3-4B-Base" "Qwen/Qwen3-4B-Instruct-2507" "meta-llama/Meta-Llama-3-8B" "meta-llama/Meta-Llama-3-8B-Instruct" "allenai/OLMo2-7B-1124" "allenai/OLMo-2-1124-7B-DPO")
-CONTROL_DATA_DIR="${CONTROL_DATA_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/generated_randomness_control_datasets}"
+CONTROL_DATA_DIR="${CONTROL_DATA_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/generated_randomness_control_datasets}"
 MANIFEST="${MANIFEST:-}"
 USE_LEGACY_DATASETS="${USE_LEGACY_DATASETS:-0}"
 MODEL_INDEX="${SLURM_ARRAY_TASK_ID:-0}"
@@ -42,7 +42,7 @@ fi
 MODEL="${MODELS[$MODEL_INDEX]}"
 MODEL_OUTPUT_NAME="${MODEL//\//_}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 
 DATASETS=(
   "random_strings_control_unstructured_random.pt"
@@ -54,7 +54,7 @@ DATASETS=(
   "random_strings_control_structured_feedback_random_noise.pt"
 )
 
-OUTPUT_ROOT="${OUTPUT_ROOT:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/generation_randomness_bf}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/generation_randomness_bf}"
 SAMPLE_COUNTS="${SAMPLE_COUNTS:-20}"
 MAX_TOKENS="${MAX_TOKENS:-256}"
 LOG_PROBS="${LOG_PROBS:-50}"
@@ -99,7 +99,7 @@ if [[ -n "${MANIFEST}" ]]; then
   fi
 
   echo "Running manifest rows for model=${MODEL} from ${MANIFEST}"
-  python reviewer_mvhn_experiments/run_demo_from_manifest.py \
+  python tmlr_additional_experiments/run_demo_from_manifest.py \
     --manifest "${MANIFEST}" \
     --model_filter "${MODEL}" \
     --selection "${MANIFEST_SELECTION}" \

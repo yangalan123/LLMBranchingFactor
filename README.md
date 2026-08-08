@@ -38,9 +38,9 @@ export BF_COT_HUB_ROOT="$PWD/chain-of-thought-hub"
 - `demo/demo.py`: end-to-end BF estimation for a new model or dataset.
 - `mmlu/`, `cognac/`, `storytelling/`, `language_modeling/`: original paper experiments.
 - `visualization/`: plotting utilities for the original analyses and the camera-ready post-training comparison (`plot_bf_histogram.py`).
-- `reviewer_mvhn_experiments/`: camera-ready self-narrowing, random-prefix substitution, and unexpected-feedback controls, including sanitized SLURM templates and compact plotting data.
+- `tmlr_additional_experiments/`: camera-ready self-narrowing, random-prefix substitution, and unexpected-feedback controls, including sanitized SLURM templates and compact plotting data.
 
-Start with [`reviewer_mvhn_experiments/README.md`](reviewer_mvhn_experiments/README.md) for the new intervention workflows. All scripts accept paths through arguments or environment variables and intentionally omit cluster accounts, partitions, usernames, and private filesystem locations.
+Start with [`tmlr_additional_experiments/README.md`](tmlr_additional_experiments/README.md) for the new intervention workflows. All scripts accept paths through arguments or environment variables and intentionally omit cluster accounts, partitions, usernames, and private filesystem locations.
 
 ## Citation
 

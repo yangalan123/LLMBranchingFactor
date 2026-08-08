@@ -29,7 +29,7 @@ TOP_P="${TOP_P:-0.9}"
 MIN_P="${MIN_P:-0}"
 SEED="${SEED:-42}"
 
-mkdir -p "${PROJECT_DIR}/reviewer_mvhn_experiments/slurm/logs"
+mkdir -p "${PROJECT_DIR}/tmlr_additional_experiments/slurm/logs"
 
 cd "${PROJECT_DIR}"
 source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -43,7 +43,7 @@ if [[ -n "${DEFAULT_CHAT_TEMPLATE_PATH:-}" ]]; then
   EXTRA_ARGS+=(--default_chat_template_path "${DEFAULT_CHAT_TEMPLATE_PATH}")
 fi
 
-python reviewer_mvhn_experiments/run_demo_from_manifest.py \
+python tmlr_additional_experiments/run_demo_from_manifest.py \
   --manifest "${MANIFEST}" \
   --sample_counts "${SAMPLE_COUNTS}" \
   --max_tokens "${MAX_TOKENS}" \

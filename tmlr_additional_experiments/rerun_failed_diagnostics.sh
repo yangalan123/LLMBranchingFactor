@@ -12,9 +12,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 
 # Output dir of the previous (full) run that produced artifact_index.csv.
-PRIOR_OUTPUT_DIR="${PRIOR_OUTPUT_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/random_string_bf_diag}"
+PRIOR_OUTPUT_DIR="${PRIOR_OUTPUT_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/random_string_bf_diag}"
 # Where the re-run results are written (kept separate from the full run).
-RERUN_OUTPUT_DIR="${RERUN_OUTPUT_DIR:-${PROJECT_DIR}/reviewer_mvhn_experiments/outputs/random_string_bf_diag_rerun}"
+RERUN_OUTPUT_DIR="${RERUN_OUTPUT_DIR:-${PROJECT_DIR}/tmlr_additional_experiments/outputs/random_string_bf_diag_rerun}"
 
 cd "${PROJECT_DIR}"
 if [[ -n "${ENV_PATH:-}" ]]; then
@@ -58,7 +58,7 @@ while IFS= read -r path; do
   ARTIFACT_ARGS+=(--artifact_path "${path}")
 done < "${FAILED_PATHS_FILE}"
 
-python reviewer_mvhn_experiments/random_string_artifact_diagnostics.py \
+python tmlr_additional_experiments/random_string_artifact_diagnostics.py \
   "${ARTIFACT_ARGS[@]}" \
   --output_dir "${RERUN_OUTPUT_DIR}" \
   --window_size 10 \
