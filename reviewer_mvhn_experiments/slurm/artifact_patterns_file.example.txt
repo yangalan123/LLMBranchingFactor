@@ -1,0 +1,2 @@
+/path/to/experiment/response_random_strings/application_ctrlgen_multi_constraints_*/*_response_n_50_max_tokens_*_log_probs_50_min_p_*_top_p_0.9_seed42_word_level_constraint_multiplier_15.pt
+/path/to/repository/demo/response_random_strings/application_ctrlgen_multi_constraints_*/*_response_n_50_max_tokens_*_log_probs_50_min_p_*_top_p_0.9_seed42_word_level_constraint_multiplier_15*_bf.pt

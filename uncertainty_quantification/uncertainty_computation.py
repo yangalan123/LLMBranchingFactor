@@ -1,9 +1,14 @@
 import numpy as np
 import torch
 
+from uncertainty_quantification.common_utils import condense_arrays_with_inconsistent_lengths
 from uncertainty_quantification.loglik_computation import get_token_truncated_dist_from_vllm_outputs
 
 DEFAULT_ASYMPTOTIC_LIMIT=50
+
+ENTROPY_PROFILE_KEY = "entropy"
+LOGLIK_PROFILE_KEY = "output_per_token_logprob_truncated"
+
 
 def compute_bf_values(entropies, logliks, asymptotic_limit=DEFAULT_ASYMPTOTIC_LIMIT):
     # Important Note: here entropies and logliks both have to be "Accumulated"!!
@@ -16,6 +21,113 @@ def compute_bf_values(entropies, logliks, asymptotic_limit=DEFAULT_ASYMPTOTIC_LI
         else:
             ret.append(entropy[-1] / len(entropy))
     return ret
+
+
+def accumulate_entropy_and_loglik_from_profile(distribution_profile,
+                                               entropy_key=ENTROPY_PROFILE_KEY,
+                                               loglik_key=LOGLIK_PROFILE_KEY):
+    """Condense a distribution_profile into the "accumulated" per-prompt arrays that
+    compute_bf_values expects.
+
+    For each prompt this returns:
+      * output_token_entropies: cumulative sum of the (sample-averaged) per-token
+        entropy, i.e. entropy[:k].sum() at index k-1.
+      * output_token_logprobs: the (sample-averaged) mean per-token loglik over the
+        length-k prefix (prefix_mode + divide_by_length).
+
+    This is the chunk that was duplicated in demo.step3_compute_bf_values, the v2
+    pipeline, and the plotting helpers. The two returned lists stay index-aligned
+    per prompt (one entry per profile instance), so they can be passed straight to
+    compute_bf_values.
+    """
+    output_token_entropies = [
+        np.array(condense_arrays_with_inconsistent_lengths(instance)).cumsum()
+        for instance in distribution_profile[entropy_key]
+    ]
+    output_token_logprobs = [
+        np.array(condense_arrays_with_inconsistent_lengths(
+            instance, prefix_mode=True, divide_by_length=True))
+        for instance in distribution_profile[loglik_key]
+    ]
+    return output_token_entropies, output_token_logprobs
+
+
+def compute_overall_bf_from_profile(distribution_profile, asymptotic_limit=DEFAULT_ASYMPTOTIC_LIMIT,
+                                    entropy_key=ENTROPY_PROFILE_KEY, loglik_key=LOGLIK_PROFILE_KEY):
+    """Per-prompt BF values (exp-space) and their mean from a distribution_profile.
+
+    Equivalent to the old demo.step3_compute_bf_values body.
+    """
+    output_token_entropies, output_token_logprobs = accumulate_entropy_and_loglik_from_profile(
+        distribution_profile, entropy_key=entropy_key, loglik_key=loglik_key)
+    bf_values = np.exp(compute_bf_values(
+        output_token_entropies, output_token_logprobs, asymptotic_limit=asymptotic_limit))
+    return bf_values, float(np.mean(bf_values))
+
+
+def compute_bf_curve_from_profile(distribution_profile, asymptotic_limit=DEFAULT_ASYMPTOTIC_LIMIT,
+                                  min_prompts_per_position=1, entropy_only=False,
+                                  entropy_key=ENTROPY_PROFILE_KEY, loglik_key=LOGLIK_PROFILE_KEY):
+    """BF as a function of generation position, averaged across prompts.
+
+    At each position the per-prompt log-BF follows compute_bf_values: the mean
+    per-token entropy while the prefix length is within ``asymptotic_limit``, then
+    the mean per-token NLL (``-loglik``) past it. ``entropy_only=True`` (equivalently
+    ``asymptotic_limit -> infinity``) keeps the slower-converging entropy estimate
+    for the whole sequence, which suits stochastic tasks such as random strings.
+
+    Returns a list of dicts: {"position", "bf", "bf_std", "n_prompts"}.
+    """
+    effective_limit = float("inf") if entropy_only else asymptotic_limit
+    entropy_groups = distribution_profile.get(entropy_key, []) or []
+    loglik_groups = distribution_profile.get(loglik_key, []) or []
+
+    entropy_by_prompt = []
+    loglik_by_prompt = []
+    for idx, entropy_instance in enumerate(entropy_groups):
+        if not entropy_instance:
+            continue
+        entropy_values = condense_arrays_with_inconsistent_lengths(entropy_instance)
+        if not entropy_values:
+            continue
+        loglik_instance = loglik_groups[idx] if idx < len(loglik_groups) else None
+        loglik_values = None
+        if loglik_instance:
+            condensed = condense_arrays_with_inconsistent_lengths(
+                loglik_instance, prefix_mode=True, divide_by_length=True)
+            if condensed:
+                loglik_values = np.array(condensed)
+        # The loglik branch is only needed past the asymptotic limit; when we stay in
+        # the entropy regime for the whole sequence we don't require it.
+        if not entropy_only and loglik_values is None:
+            continue
+        entropy_by_prompt.append(np.array(entropy_values).cumsum())
+        loglik_by_prompt.append(loglik_values)
+
+    curves = []
+    max_len = max([len(x) for x in entropy_by_prompt] + [0])
+    for pos in range(max_len):
+        per_prompt_log_bf = []
+        for entropies, logliks in zip(entropy_by_prompt, loglik_by_prompt):
+            if len(entropies) <= pos:
+                continue
+            if (pos + 1) <= effective_limit:
+                log_bf = entropies[pos] / (pos + 1)  # mean per-token entropy
+            else:
+                if logliks is None or len(logliks) <= pos:
+                    continue
+                log_bf = -logliks[pos]  # mean per-token NLL
+            per_prompt_log_bf.append(log_bf)
+        if len(per_prompt_log_bf) < min_prompts_per_position:
+            break
+        bf_values = np.exp(per_prompt_log_bf)
+        curves.append({
+            "position": pos,
+            "bf": float(np.mean(bf_values)),
+            "bf_std": float(np.std(bf_values)),
+            "n_prompts": len(per_prompt_log_bf),
+        })
+    return curves
 
 
 # mean-token-entropies: introduced to quantify NLG model's output uncertainty

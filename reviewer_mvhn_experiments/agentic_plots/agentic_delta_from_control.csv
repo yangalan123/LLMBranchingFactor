@@ -1,0 +1,13 @@
+model,condition,delta_overall_bf_vs_control
+meta-llama_Meta-Llama-3-8B,adversarial,0.5599632263183594
+meta-llama_Meta-Llama-3-8B,random_noise,0.35340452194213867
+meta-llama_Meta-Llama-3-8B-Instruct,adversarial,0.016738176345825195
+meta-llama_Meta-Llama-3-8B-Instruct,random_noise,0.026573538780212402
+allenai_OLMo2-7B-1124,adversarial,1.0756158828735352
+allenai_OLMo2-7B-1124,random_noise,1.085782527923584
+allenai_OLMo-2-1124-7B-DPO,adversarial,0.12593531608581543
+allenai_OLMo-2-1124-7B-DPO,random_noise,0.35663294792175293
+Qwen_Qwen3-4B-Base,adversarial,0.1956651210784912
+Qwen_Qwen3-4B-Base,random_noise,0.12180781364440918
+Qwen_Qwen3-4B-Instruct-2507,adversarial,0.04808473587036133
+Qwen_Qwen3-4B-Instruct-2507,random_noise,-0.08553922176361084

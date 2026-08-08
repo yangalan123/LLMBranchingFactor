@@ -1,53 +1,55 @@
-# LLMBranchingFactor
+# LLM Branching Factor
 
-Codebase for the paper "How Alignment Shrinks the Generative Horizon"
+Official code for **[How Alignment Shrinks the Generative Horizon](https://openreview.net/forum?id=KotVuXj6CL)**, published in Transactions on Machine Learning Research (TMLR).
 
-Author: Chenghao Yang (yangalan1996@gmail.com)
+Branching Factor (BF) measures the effective number of plausible next steps during generation. The camera-ready experiments distinguish:
 
-## Dependencies
+- **autoregressive self-narrowing**: BF usually falls as a model conditions on its growing output prefix, for base and aligned models alike;
+- **alignment concentration**: alignment lowers the BF level and often steepens its early decline;
+- **local reversibility**: externally sampled random prefixes and unexpected environment feedback can temporarily raise BF.
 
-Create a conda environment, and then install the dependencies from `requirements_conda.txt` and install our package in editable mode:
+## Installation
+
 ```bash
 conda create -p ./env --file requirements_conda.txt
 conda activate ./env
 pip install -e .
 ```
 
-Download chat_templastes used to set up aligned model prompting (for backward compatibility to older version of HF):
+Optional prompt resources:
+
 ```bash
 git clone https://github.com/chujiezheng/chat_templates.git
-```
-
-Update: we recently find CoT hub provides performance-verified prompt templates for various tasks, which are more reliable than the ones in `chat_templates`. 
-We recommend using them instead. That repo is released under MIT license. We have adjusted part of our codes to accomodate it.  
-
-Download prompt template files from Chain-of-Thoughts hub:
-```bash
 git clone https://github.com/FranxYao/chain-of-thought-hub.git
 ```
-But in general, you can put any prompt template files in the `prompt_templates` folder under `root_path` (see instruction below to set it up), and the code will automatically load them.
+
+Paths are configured through environment variables; no source edits are required:
+
+```bash
+export BF_PROJECT_ROOT="$PWD"
+export BF_CHAT_TEMPLATES_ROOT="$PWD/chat_templates"
+export BF_COT_HUB_ROOT="$PWD/chain-of-thought-hub"
+```
+
+`BF_PROJECT_ROOT` defaults to the repository root. The other variables are only needed by experiments that use those external prompt collections.
 
 ## Usage
-1. Setup Environment Variable
 
-    In order to run the code, you need to set the environment variable:
+- `demo/demo.py`: end-to-end BF estimation for a new model or dataset.
+- `mmlu/`, `cognac/`, `storytelling/`, `language_modeling/`: original paper experiments.
+- `visualization/`: plotting utilities for the original analyses and the camera-ready post-training comparison (`plot_bf_histogram.py`).
+- `reviewer_mvhn_experiments/`: camera-ready self-narrowing, random-prefix substitution, and unexpected-feedback controls, including sanitized SLURM templates and compact plotting data.
 
-    In `uncertainty_quantification/consts.py`, set `root_path` to be the absolute path to the current project directory.
+Start with [`reviewer_mvhn_experiments/README.md`](reviewer_mvhn_experiments/README.md) for the new intervention workflows. All scripts accept paths through arguments or environment variables and intentionally omit cluster accounts, partitions, usernames, and private filesystem locations.
 
-    Also change all `/path/to/project` in all shell scripts to run the codes.
+## Citation
 
-2. Run shell scripts under `mmlu`, `cognac`, `storytelling`, `language_modeling` to replicate experiments in the paper. `stepX_xxx.sh` specify the ordering to run the scripts. `visualization` provide codes to create figures in the paper.
-
-3. [For Application to New Dataset and New Models] Take a look at `demo/demo.py`. Owing to significant improvement of vLLM memory management, using my columnar IO storage, you can now using a single file to run the whole pipeline.
-
-## Reference
-If you use this code as part of any published research, please acknowledge the following paper (it encourages researchers who publish their code!):
-
-```
-@inproceedings{yang-2025-branching,
-  author =      {Chenghao Yang and Ari Holtzman},
-  title =       {How Alignment Shrinks the Generative Horizon},
-  booktitle =   {Arxiv},
-  year =        {2025}
+```bibtex
+@article{yang2026alignment,
+  title   = {How Alignment Shrinks the Generative Horizon},
+  author  = {Yang, Chenghao and Holtzman, Ari},
+  journal = {Transactions on Machine Learning Research},
+  year    = {2026},
+  url     = {https://openreview.net/forum?id=KotVuXj6CL}
 }
 ```

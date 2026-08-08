@@ -126,3 +126,51 @@ def compute_loglik(token_ids, log_probs, start=None, end=None, tolerance_inf=tol
         raise ValueError(
             f"Irregular log likelihood values detected: {count_irregular} / {len(token_ids)} tokens.\nDetails: {loglik}")
     return sum(loglik)
+
+
+def build_distribution_profile_from_responses(database, prompts, top_p, metadata=None, show_progress=True):
+    """Build the standard ``distribution_profile`` dict from a list of vLLM
+    RequestOutputs (one per prompt, each with N samples).
+
+    This is exactly the body that ``demo.step2_compute_loglik_and_entropy`` used to
+    inline. Centralizing it lets other pipelines (e.g. the multi-turn agentic harness)
+    produce byte-for-byte identical profiles -- with the same keys consumed by
+    uncertainty_computation.compute_*_from_profile -- without importing demo.py.
+
+    Keys: prompt, output, prompt_per_token_logprob, output_per_token_logprob,
+    output_per_token_logprob_truncated (used for BF), entropy, metadata.
+    """
+    from tqdm import tqdm
+
+    distribution_profile = {"prompt": [], "output": [], "prompt_per_token_logprob": [],
+                            "output_per_token_logprob": [], "output_per_token_logprob_truncated": [],
+                            "entropy": [],
+                            "metadata": metadata}
+    for idx in tqdm(range(len(database)), desc="Computing loglik/entropy", leave=False,
+                    disable=not show_progress):
+        data = database[idx]
+        prompt = prompts[idx]
+        all_outputs = data.outputs
+        if data.prompt_logprobs is None:
+            prompt_loglik = None
+            prompt_per_token_loglik = None
+        else:
+            prompt_loglik = compute_loglik(data.prompt_token_ids, data.prompt_logprobs)
+            prompt_per_token_loglik = get_tokenwise_logprob_from_vllm_outputs(
+                data.prompt_token_ids, data.prompt_logprobs)
+        prompt_loglik_profile = [prompt_loglik, len(data.prompt_token_ids), prompt]
+        output_loglik_profiles = [[x.cumulative_logprob, len(x.token_ids), x.text, idx] for x in all_outputs]
+        output_per_token_loglik_profiles = [
+            get_tokenwise_logprob_from_vllm_outputs(x.token_ids, x.logprobs) for x in all_outputs]
+        output_per_token_loglik_profiles_truncated = [
+            get_tokenwise_logprob_from_vllm_outputs(x.token_ids, x.logprobs, top_p=top_p) for x in all_outputs]
+        entropies = get_tokenwise_entropy_from_vllm_outputs(all_outputs, top_p, top_p_mode=True)
+        entropies = [x[0] for x in entropies]
+        distribution_profile["prompt"].append(prompt_loglik_profile)
+        distribution_profile["output"].extend(output_loglik_profiles)
+        distribution_profile["prompt_per_token_logprob"].append(prompt_per_token_loglik)
+        distribution_profile["output_per_token_logprob"].append(output_per_token_loglik_profiles)
+        distribution_profile['output_per_token_logprob_truncated'].append(
+            output_per_token_loglik_profiles_truncated)
+        distribution_profile['entropy'].append(entropies)
+    return distribution_profile
